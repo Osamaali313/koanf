@@ -1307,6 +1307,28 @@ func TestSlices(t *testing.T) {
 	}
 }
 
+func TestSlicesNativeMapSlice(t *testing.T) {
+	assert := assert.New(t)
+
+	// A natively-typed []map[string]any (as produced by the confmap and
+	// structs providers, and named in Slices' own doc) must be handled too,
+	// not just a []any of maps decoded by a parser. It was silently dropped.
+	k := koanf.New(delim)
+	assert.NoError(k.Load(confmap.Provider(map[string]any{
+		"servers": []map[string]any{
+			{"host": "a", "port": 1},
+			{"host": "b", "port": 2},
+		},
+	}, "."), nil))
+
+	slices := k.Slices("servers")
+	assert.Len(slices, 2, "Slices dropped a []map[string]any value")
+	assert.Equal("a", slices[0].String("host"))
+	assert.Equal(1, slices[0].Int("port"))
+	assert.Equal("b", slices[1].String("host"))
+	assert.Equal(2, slices[1].Int("port"))
+}
+
 func TestGetTypes(t *testing.T) {
 	assert := assert.New(t)
 	for _, c := range cases {
