@@ -368,37 +368,26 @@ func (ko *Koanf) Get(path string) any {
 	return out
 }
 
-// Slices returns a list of Koanf instances constructed out of a
-// []map[string]any interface at the given path.
+// Slices returns a list of Koanf instances constructed from the value
+// at path. It accepts []map[string]any or []any containing map[string]any
+// elements. Non-slice elements are skipped.
 func (ko *Koanf) Slices(path string) []*Koanf {
 	out := []*Koanf{}
 	if path == "" {
 		return out
 	}
 
-	// Collect the sub-maps at the path. The value may be a []any of maps
-	// (the common product of parsers) or a natively-typed []map[string]any
-	// (eg: from the confmap or structs providers), which is the type named
-	// in this method's doc.
-	var mps []map[string]any
 	switch v := ko.Get(path).(type) {
 	case []map[string]any:
-		mps = v
+		for _, mp := range v {
+			out = ko.appendMap(mp, out)
+		}
 	case []any:
-		mps = make([]map[string]any, 0, len(v))
-		for _, s := range v {
-			if mp, ok := s.(map[string]any); ok {
-				mps = append(mps, mp)
+		for _, item := range v {
+			if mp, ok := item.(map[string]any); ok {
+				out = ko.appendMap(mp, out)
 			}
 		}
-	default:
-		return out
-	}
-
-	for _, mp := range mps {
-		k := New(ko.conf.Delim)
-		_ = k.merge(mp, new(options))
-		out = append(out, k)
 	}
 
 	return out
@@ -663,4 +652,11 @@ func textUnmarshalerHookFunc() mapstructure.DecodeHookFuncType {
 		}
 		return result, nil
 	}
+}
+
+// appendMap creates new Koanf instances from a map returns a slice of Koanf instances.
+func (ko *Koanf) appendMap(mp map[string]any, out []*Koanf) []*Koanf {
+	k := New(ko.conf.Delim)
+	_ = k.merge(mp, new(options))
+	return append(out, k)
 }
